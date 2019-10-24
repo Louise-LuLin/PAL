@@ -8,8 +8,8 @@ GAMMA = 0.99  # decay rate of past observations
 OBSERVE = 32.  # timesteps to observe before training
 REPLAY_MEMORY_SIZE = 1000  # number of previous transitions to remember
 BATCH_SIZE = 32  # size of minibatch
-FINAL_EPSILON = 0
-INITIAL_EPSILON = 0
+FINAL_EPSILON = 0.01
+INITIAL_EPSILON = 0.1
 # or alternative:
 # FINAL_EPSILON = 0.0001  # final value of epsilon
 # INITIAL_EPSILON = 0.01  # starting value of epsilon
@@ -19,9 +19,10 @@ EXPLORE = 100000.  # frames over which to anneal epsilon
 
 class RobotCNNDQN:
 
-    def __init__(self, actions=2, vocab_size=20000, max_len=120, embeddings=[]):
+    def __init__(self, agent = "CNNDQN", actions=2, vocab_size=20000, max_len=120, embeddings=[]):
         print("Creating a robot: CNN-DQN")
         # replay memory
+        self.agent = agent
         self.replay_memory = deque()
         self.time_step = 0
         self.action = actions
@@ -61,8 +62,24 @@ class RobotCNNDQN:
         self.b_fc2 = self.bias_variable([self.action])
 
         # hidden layers
-        self.h_fc1_all = tf.nn.relu(tf.matmul(self.state_content, self.w_fc1_s) + tf.matmul(
+        if self.agent == "CNNDQN":
+            self.h_fc1_all = tf.nn.relu(tf.matmul(self.state_content, self.w_fc1_s) + tf.matmul(
             self.state_marginals, self.w_fc1_p) + tf.matmul(self.state_confidence, self.w_fc1_c) + self.b_fc1)
+        elif self.agent == "CNNDQN_1":
+            self.h_fc1_all = tf.nn.relu(tf.matmul(
+            self.state_marginals, self.w_fc1_p) + tf.matmul(self.state_confidence, self.w_fc1_c) + self.b_fc1)
+        elif self.agent == "CNNDQN_2":
+            self.h_fc1_all = tf.nn.relu(tf.matmul(self.state_content, self.w_fc1_s) + tf.matmul(self.state_confidence, self.w_fc1_c) + self.b_fc1)
+        elif self.agent == "CNNDQN_3":
+            self.h_fc1_all = tf.nn.relu(tf.matmul(self.state_content, self.w_fc1_s) + tf.matmul(
+            self.state_marginals, self.w_fc1_p) + self.b_fc1)
+        elif self.agent == "CNNDQN1":
+            self.h_fc1_all = tf.nn.relu(tf.matmul(self.state_content, self.w_fc1_s) + self.b_fc1)
+        elif self.agent == "CNNDQN2":
+            self.h_fc1_all = tf.nn.relu(tf.matmul(self.state_marginals, self.w_fc1_p) + self.b_fc1)
+        elif self.agent == "CNNDQN3":
+            self.h_fc1_all = tf.nn.relu(tf.matmul(self.state_confidence, self.w_fc1_c) + self.b_fc1) 
+           
         # Q Value layer
         self.qvalue = tf.matmul(self.h_fc1_all, self.w_fc2) + self.b_fc2
         # action input
@@ -142,7 +159,7 @@ class RobotCNNDQN:
         self.time_step += 1
 
     def get_action(self, observation):
-        print "DQN is smart."
+        print ("DQN is smart.")
         self.current_state = observation
         sent, confidence, predictions = self.current_state
         # print sent, confidence, predictions
@@ -283,8 +300,8 @@ class RobotCNNDQN:
         self.w_embeddings = embeddings
         self.vocab_size = len(self.w_embeddings)
         self.embedding_size = len(self.w_embeddings[0])
-        print "Assigning new word embeddings"
-        print "New size", self.vocab_size
-        self.sess.run(self.w.assign(self.w_embeddings))
+        print ("Assigning new word embeddings")
+        print ("New size", self.vocab_size)
+        self.sess.run(tf.assign(self.w, self.w_embeddings))
         self.time_step = 0
         self.replay_memory = deque()

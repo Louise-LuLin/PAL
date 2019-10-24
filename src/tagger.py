@@ -1,6 +1,5 @@
 import pycrfsuite
 import os
-import helpers
 import random
 import math
 
@@ -80,11 +79,11 @@ class CRFTagger(object):
         })
         trainer.train(self.model_file)
         if len(trainer.logparser.iterations) != 0:
-            print len(trainer.logparser.iterations), trainer.logparser.iterations[-1]
+            print (len(trainer.logparser.iterations), trainer.logparser.iterations[-1])
         else:
             # todo
-            print len(trainer.logparser.iterations)
-            print("There is no loss to present")
+            print (len(trainer.logparser.iterations))
+            print ("There is no loss to present")
 
     # different lens
     def get_predictions(self, sent):
@@ -105,7 +104,7 @@ class CRFTagger(object):
         # if len(tagger.labels) < 5
         for i in range(len(sent)):
             y_i = []
-            for y in range(1, 6):
+            for y in range(0, len(tagger.labels())):
                 if str(y) in tagger.labels():
                     y_i.append(tagger.marginal(str(y), i))
                 else:
@@ -170,28 +169,28 @@ class CRFTagger(object):
                 total += 1
                 if y_pred[i][j] == Y_true[i][j]:
                     corr += 1
-                if helpers.label2str[int(y_pred[i][j])] != 'O':  # not 'O'
+                if y_pred[i][j] != 'O':  # not 'O'
                     pre_tot += 1
                     if y_pred[i][j] == Y_true[i][j]:
                         pre += 1
-                if helpers.label2str[int(Y_true[i][j])] != 'O':
+                if Y_true[i][j] != 'O':
                     rec_tot += 1
                     if y_pred[i][j] == Y_true[i][j]:
                         rec += 1
 
         res = corr * 1. / total
-        print "Accuracy (token level)", res
+        print ("Accuracy (token level)", res)
         if pre_tot == 0:
             pre = 0
         else:
             pre = 1. * pre / pre_tot
         rec = 1. * rec / rec_tot
-        print "Precision", pre, "Recall", rec
+        print ("Precision", pre, "Recall", rec)
 
         beta = 1
         f1score = 0
         if pre != 0 or rec != 0:
             f1score = (beta * beta + 1) * pre * rec / \
                 (beta * beta * pre + rec)
-        print "F1", f1score
-        return f1score
+        print ("F1", f1score)
+        return res

@@ -20,7 +20,7 @@ class NERGame:
         self.max_len = max_len
         self.w2v = w2v
 
-        print "Story: length = ", len(self.train_x)
+        print ("Story: length = ", len(self.train_x))
         self.order = range(0, len(self.train_x))
         # if re-order, use random.shuffle(self.order)
         # load word embeddings, pretrained - w2v
@@ -35,6 +35,11 @@ class NERGame:
         self.queried_set_x = []
         self.queried_set_y = []
         self.queried_set_idx = []
+        self.cache_order = range(0, budget)
+        self.current_cache_frame = 0
+        
+        self.cost = []
+        self.acc = []
 
         # let's start
         self.episode = 0
@@ -67,7 +72,8 @@ class NERGame:
             preds_padding = predictions[0:self.max_len]
         else:
             preds_padding = predictions
-
+        
+        cur_cost = [self.budget - self.current_frame]
         obervation = [sentence_idx, confidence, preds_padding]
         return obervation
 
@@ -80,6 +86,8 @@ class NERGame:
             self.query()
             new_performance = self.get_performance(model)
             reward = new_performance - self.performance
+            self.cost.append(self.queried_times)
+            self.acc.append(new_performance)
             if new_performance != self.performance:
                 #reward = 3.
                 self.performance = new_performance
@@ -91,12 +99,15 @@ class NERGame:
         # next frame
         next_sentence = []
         next_sentence_idx = []
-        if self.queried_times == self.budget:
+        if self.current_frame == self.budget - 1:
             self.terminal = True
             is_terminal = True
             # update special reward
             # reward = new_performance * 100
             # prepare the next game
+            print ('cost and acc')
+            print (self.cost)
+            print (self.acc)
             self.reboot()  # set the current frame = 0
             next_sentence = self.train_x[self.order[self.current_frame]]
             next_sentence_idx = self.train_idx[self.order[self.current_frame]]
@@ -125,6 +136,7 @@ class NERGame:
         else:
             preds_padding = predictions
 
+        cur_cost = [self.budget - self.current_frame]
         next_observation = [next_sentence_idx, confidence, preds_padding]
         return reward, next_observation, is_terminal
 
@@ -139,7 +151,7 @@ class NERGame:
             self.queried_set_y.append(labels)
             self.queried_set_idx.append(
                 self.train_idx[self.order[self.current_frame]])
-            print "> Queried times", len(self.queried_set_x)
+            print ("> Queried times", len(self.queried_set_x))
 
     # tagger = model
     def get_performance(self, tagger):
@@ -151,7 +163,7 @@ class NERGame:
             performance = tagger.test(self.dev_idx, self.dev_y)
             return performance
 
-        print len(self.queried_set_x), len(self.queried_set_y)
+        print (len(self.queried_set_x), len(self.queried_set_y))
         train_sents = helpers.data2sents(
             self.queried_set_x, self.queried_set_y)
         # print train_sents
@@ -166,12 +178,56 @@ class NERGame:
         # resort story
         # why not use docvecs? TypeError: 'DocvecsArray' object does not
         # support item assignment
-        random.shuffle(self.order)
+        random.shuffle(list(self.order))
         self.queried_times = 0
         self.terminal = False
         self.queried_set_x = []
         self.queried_set_y = []
         self.queried_set_idx = []
+        self.cost = []
+        self.acc = []
         self.current_frame = 0
         self.episode += 1
-        print "> Next episode", self.episode
+        print ("> Next episode", self.episode)
+        
+    def replay(self):
+        # resort story
+        self.order = range(0, len(self.train_x))
+        random.shuffle(list(self.order))
+        self.queried_times = 0
+        self.terminal = False
+        self.queried_set_x = []
+        self.queried_set_y = []
+        self.queried_set_idx = []
+        self.cost = []
+        self.acc = []
+        self.current_frame = 0
+        self.episode += 1
+        print ("> Next episode", self.episode)
+        
+# class NERGameActive(NERGame):
+#         def get_cache_frame(self, model):
+#         self.make_query = False
+#         sentence = self.train_x[self.order[self.current_frame]]
+#         sentence_idx = self.train_idx[self.order[self.current_frame]]
+#         confidence = 0.
+#         predictions = []
+#         if model.name == "CRF":
+#             confidence = model.get_confidence(sentence)
+#             predictions = model.get_predictions(sentence)
+#         else:
+#             confidence = model.get_confidence(sentence_idx)
+#             predictions = model.get_predictions(sentence_idx)
+#         preds_padding = []
+#         orig_len = len(predictions)
+#         if orig_len < self.max_len:
+#             preds_padding.extend(predictions)
+#             for i in range(self.max_len - orig_len):
+#                 preds_padding.append([0] * 5)
+#         elif orig_len > self.max_len:
+#             preds_padding = predictions[0:self.max_len]
+#         else:
+#             preds_padding = predictions
+
+#         obervation = [sentence_idx, confidence, preds_padding]
+#         return obervation

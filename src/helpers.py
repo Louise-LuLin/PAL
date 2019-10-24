@@ -3,6 +3,7 @@ import re
 import itertools
 from collections import Counter
 import tensorflow as tf
+from gensim.models import KeyedVectors
 
 # map a label to a string
 label2str = {1: "PER", 2: "LOC", 3: "ORG", 4: "MISC", 5: "O"}
@@ -21,7 +22,7 @@ def load_data2labels(input_file):
     seq_set_len = []
     with open(input_file, "r") as f:
         for line in f:
-            line = line.strip()
+            line = line.replace('\n','')
             if line == "":
                 seq_set.append(" ".join(seq))
                 seq_set_label.append(seq_label)
@@ -29,41 +30,46 @@ def load_data2labels(input_file):
                 seq = []
                 seq_label = []
             else:
-                tok, label = line.split()
+#                 print (line.split())
+                tok, label = line.split('\t')
                 seq.append(tok)
-                seq_label.append(labels_map[label])
+#                 seq_label.append(labels_map[label])
+                seq_label.append(label)
     return [seq_set, seq_set_label, seq_set_len]
 
 
 def load_crosslingual_embeddings(input_file, vocab, max_vocab_size=20000):
-    embeddings = list(open(input_file, "r").readlines())
-    pre_w2v = {}
-    emb_size = 0
-    for emb in embeddings:
-        parts = emb.strip().split()
-        if emb_size != (len(parts) - 1):
-            if emb_size == 0:
-                emb_size = len(parts) - 1
-            else:
-                print "Different embedding size!"
-                break
+#     embeddings = list(open(input_file, "r").readlines())
+#     pre_w2v = {}
+#     emb_size = 0
+#     for emb in embeddings:
+#         parts = emb.strip().split()
+#         if emb_size != (len(parts) - 1):
+#             if emb_size == 0:
+#                 emb_size = len(parts) - 1
+#             else:
+#                 print ("Different embedding size!")
+#                 break
 
-        w = parts[0]
-        w_parts = w.split(":")
-        if len(w_parts) != 2:
-            w = ":"
-        else:
-            w = w_parts[1]
-        vec = []
-        for i in range(1, len(parts)):
-            vec.append(float(parts[i]))
-        # print w, vec
-        pre_w2v[w] = vec
+#         w = parts[0]
+#         w_parts = w.split(":")
+#         if len(w_parts) != 2:
+#             w = ":"
+#         else:
+#             w = w_parts[1]
+#         vec = []
+#         for i in range(1, len(parts)):
+#             vec.append(float(parts[i]))
+#         # print w, vec
+#         pre_w2v[w] = vec
 
+    pre_w2v = KeyedVectors.load(input_file, mmap='r')
+    emb_size = pre_w2v.vector_size
+    
     n_dict = len(vocab._mapping)
     vocab_w2v = [None] * n_dict
     # vocab_w2v[0]=np.random.uniform(-0.25,0.25,100)
-    for w, i in vocab._mapping.iteritems():
+    for w, i in vocab._mapping.items():
         if w in pre_w2v:
             vocab_w2v[i] = pre_w2v[w]
         else:
@@ -71,15 +77,14 @@ def load_crosslingual_embeddings(input_file, vocab, max_vocab_size=20000):
 
     cur_i = len(vocab_w2v)
     if len(vocab_w2v) > max_vocab_size:
-        print "Vocabulary size is larger than", max_vocab_size
+        print ("Vocabulary size is larger than", max_vocab_size)
         raise SystemExit
     while cur_i < max_vocab_size:
         cur_i += 1
         padding = [0] * emb_size
         vocab_w2v.append(padding)
-    print "Vocabulary", n_dict, "Embedding size", emb_size
-    return vocab_w2v
-
+    print ("Vocabulary", n_dict, "Embedding size", emb_size)
+    return vocab_w2v    
 
 def data2sents(X, Y):
     data = []
